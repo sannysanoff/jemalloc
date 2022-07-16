@@ -2575,12 +2575,22 @@ imalloc_body(static_opts_t *sopts, dynamic_opts_t *dopts, tsd_t *tsd) {
 		assert (size != 0);
 	}
 
+    if (usize > 15000000 )
+    {
+        char pbuf[100];
+        strcpy(pbuf, "JETRACE: imalloc: ");
+        itostr((int) usize, pbuf + strlen(pbuf));
+        strcat(pbuf, "\n");
+        write(1, pbuf, strlen(pbuf));
+    }
+
 	check_entry_exit_locking(tsd_tsdn(tsd));
 
-	/*
-	 * If we need to handle reentrancy, we can do it out of a
-	 * known-initialized arena (i.e. arena 0).
-	 */
+
+    /*
+     * If we need to handle reentrancy, we can do it out of a
+     * known-initialized arena (i.e. arena 0).
+     */
 	reentrancy_level = tsd_reentrancy_level_get(tsd);
 	if (sopts->slow && unlikely(reentrancy_level > 0)) {
 		/*
@@ -2639,15 +2649,6 @@ imalloc_body(static_opts_t *sopts, dynamic_opts_t *dopts, tsd_t *tsd) {
 	 * Allocation has been done at this point.  We still have some
 	 * post-allocation work to do though.
 	 */
-
-    if (usize > 15000000 )
-    {
-        char pbuf[100];
-        strcpy(pbuf, "JETRACE: imalloc: ");
-        itostr((int) usize, pbuf + strlen(pbuf));
-        strcat(pbuf, "\n");
-        write(1, pbuf, strlen(pbuf));
-    }
 
 	thread_alloc_event(tsd, usize);
 
@@ -3592,6 +3593,16 @@ do_rallocx(void *ptr, size_t size, int flags, bool is_realloc) {
 		goto label_oom;
 	}
 
+    if (usize > 15000000 )
+    {
+        char pbuf[100];
+        strcpy(pbuf, "JETRACE: rallocx: ");
+        itostr((int) usize, pbuf + strlen(pbuf));
+        strcat(pbuf, "\n");
+        write(1, pbuf, strlen(pbuf));
+    }
+
+
 	hook_ralloc_args_t hook_args = {is_realloc, {(uintptr_t)ptr, size,
 		flags, 0}};
 	if (config_prof && opt_prof) {
@@ -3609,15 +3620,6 @@ do_rallocx(void *ptr, size_t size, int flags, bool is_realloc) {
 		assert(usize == isalloc(tsd_tsdn(tsd), p));
 	}
 	assert(alignment == 0 || ((uintptr_t)p & (alignment - 1)) == ZU(0));
-
-    if (usize > 15000000 )
-    {
-        char pbuf[100];
-        strcpy(pbuf, "JETRACE: rallocx: ");
-        itostr((int) usize, pbuf + strlen(pbuf));
-        strcat(pbuf, "\n");
-        write(1, pbuf, strlen(pbuf));
-    }
 
 	thread_alloc_event(tsd, usize);
 	thread_dalloc_event(tsd, old_usize);
