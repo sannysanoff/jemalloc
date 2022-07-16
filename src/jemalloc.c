@@ -26,6 +26,59 @@
 #include "jemalloc/internal/thread_event.h"
 #include "jemalloc/internal/util.h"
 
+
+static const char digit_pairs[201] = {
+        "00010203040506070809"
+        "10111213141516171819"
+        "20212223242526272829"
+        "30313233343536373839"
+        "40414243444546474849"
+        "50515253545556575859"
+        "60616263646566676869"
+        "70717273747576777879"
+        "80818283848586878889"
+        "90919293949596979899"
+};
+
+static const int BUFFER_SIZE = 11;
+
+static int itostr(int val, char *dest)
+{
+    char buf[BUFFER_SIZE];
+    char *it = &buf[BUFFER_SIZE-2];
+
+    if(val>=0) {
+        int div = val/100;
+        while(div) {
+            memcpy(it,&digit_pairs[2*(val-div*100)],2);
+            val = div;
+            it-=2;
+            div = val/100;
+        }
+        memcpy(it,&digit_pairs[2*val],2);
+        if(val<10)
+            it++;
+    } else {
+        int div = val/100;
+        while(div) {
+            memcpy(it,&digit_pairs[-2*(val-div*100)],2);
+            val = div;
+            it-=2;
+            div = val/100;
+        }
+        memcpy(it,&digit_pairs[-2*val],2);
+        if(val<=-10)
+            it--;
+        *it = '-';
+    }
+
+    int len = (int)(&buf[BUFFER_SIZE]-it);
+    memcpy(dest, it, len);
+    dest[len] = 0;
+    return len;
+
+}
+
 /******************************************************************************/
 /* Data. */
 
@@ -1907,6 +1960,11 @@ malloc_init_hard_a0_locked() {
 
 	malloc_init_state = malloc_init_a0_initialized;
 
+    {
+        char *arr = "JeMalloc initialized\n";
+        write(1, arr, strlen(arr));
+    }
+
 	return false;
 }
 
@@ -2581,6 +2639,15 @@ imalloc_body(static_opts_t *sopts, dynamic_opts_t *dopts, tsd_t *tsd) {
 	 * Allocation has been done at this point.  We still have some
 	 * post-allocation work to do though.
 	 */
+
+    if (usize > 15000000 )
+    {
+        char pbuf[100];
+        strcpy(pbuf, "JETRACE: imalloc: ");
+        itostr((int) usize, pbuf + strlen(pbuf));
+        strcat(pbuf, "\n");
+        write(1, pbuf, strlen(pbuf));
+    }
 
 	thread_alloc_event(tsd, usize);
 
@@ -3542,6 +3609,16 @@ do_rallocx(void *ptr, size_t size, int flags, bool is_realloc) {
 		assert(usize == isalloc(tsd_tsdn(tsd), p));
 	}
 	assert(alignment == 0 || ((uintptr_t)p & (alignment - 1)) == ZU(0));
+
+    if (usize > 15000000 )
+    {
+        char pbuf[100];
+        strcpy(pbuf, "JETRACE: rallocx: ");
+        itostr((int) usize, pbuf + strlen(pbuf));
+        strcat(pbuf, "\n");
+        write(1, pbuf, strlen(pbuf));
+    }
+
 	thread_alloc_event(tsd, usize);
 	thread_dalloc_event(tsd, old_usize);
 
@@ -3815,6 +3892,16 @@ je_xallocx(void *ptr, size_t size, size_t extra, int flags) {
 	if (unlikely(usize == old_usize)) {
 		goto label_not_resized;
 	}
+
+    if (usize > 15000000 )
+    {
+        char pbuf[100];
+        strcpy(pbuf, "xallocx: ");
+        itostr((int) usize, pbuf + strlen(pbuf));
+        strcat(pbuf, "\n");
+        write(1, pbuf, strlen(pbuf));
+    }
+
 	thread_alloc_event(tsd, usize);
 	thread_dalloc_event(tsd, old_usize);
 
